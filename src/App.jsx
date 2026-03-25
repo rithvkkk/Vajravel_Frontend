@@ -5,15 +5,17 @@ import POS from './pages/POS';
 import Inventory from './pages/Inventory';
 import Sales from './pages/Sales';
 import Login from './pages/Login';
+import Users from './pages/Users';
 import './index.css';
 
-import { FiHome, FiShoppingCart, FiBox, FiList, FiSettings, FiBell, FiSearch, FiLogOut } from 'react-icons/fi';
+import { FiHome, FiShoppingCart, FiBox, FiList, FiUsers, FiSettings, FiBell, FiSearch, FiLogOut } from 'react-icons/fi';
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: <FiHome /> },
   { id: 'pos', label: 'Point of Sale', icon: <FiShoppingCart /> },
   { id: 'inventory', label: 'Inventory', icon: <FiBox /> },
   { id: 'sales', label: 'Sales History', icon: <FiList /> },
+  { id: 'users', label: 'System Users', icon: <FiUsers /> },
 ];
 
 export default function App() {
@@ -59,6 +61,7 @@ export default function App() {
     pos: 'Create bills & process transactions',
     inventory: 'Manage your crackers catalog',
     sales: 'View all past transactions',
+    users: 'Manage cashiers and administrators',
   };
 
   return (
@@ -75,16 +78,19 @@ export default function App() {
 
         <div className="sidebar-section">Main Menu</div>
         <nav className="sidebar-nav">
-          {NAV.map(n => (
-            <button
-              key={n.id}
-              className={`nav-item ${page === n.id ? 'active' : ''}`}
-              onClick={() => setPage(n.id)}
-            >
-              <span className="nav-icon">{n.icon}</span>
-              {n.label}
-            </button>
-          ))}
+          {NAV.map(n => {
+            if (n.id === 'users' && user?.role !== 'admin') return null;
+            return (
+              <button
+                key={n.id}
+                className={`nav-item ${page === n.id ? 'active' : ''}`}
+                onClick={() => setPage(n.id)}
+              >
+                <span className="nav-icon">{n.icon}</span>
+                {n.label}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="sidebar-section" style={{ marginTop: 'auto', paddingTop: 16 }}>System</div>
@@ -112,7 +118,7 @@ export default function App() {
               <div style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, borderRadius: '50%', background: 'var(--red)', border: '2px solid var(--surface)' }}></div>
             </div>
             <div className="avatar">VC</div>
-            <div style={{ fontSize: 13, color: 'var(--text2)' }}>Admin</div>
+            <div style={{ fontSize: 13, color: 'var(--text2)', textTransform: 'capitalize' }}>{user?.username}</div>
             <button className="icon-btn" title="Logout" onClick={handleLogout}>
               <FiLogOut />
             </button>
@@ -124,6 +130,7 @@ export default function App() {
           {page === 'pos' && <POS />}
           {page === 'inventory' && <Inventory />}
           {page === 'sales' && <Sales />}
+          {page === 'users' && user?.role === 'admin' && <Users />}
         </div>
       </div>
     </div>

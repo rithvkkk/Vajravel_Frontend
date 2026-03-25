@@ -23,8 +23,11 @@ async function request(url, options = {}) {
 }
 
 export const api = {
-  // Auth
+  // Auth & Users
   login: (username, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  getUsers: () => request('/users'),
+  addUser: (data) => request('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+  deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
 
   // Dashboard
   getDashboard: () => request('/dashboard'),
