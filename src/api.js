@@ -1,4 +1,4 @@
-const API = 'http://localhost:4000/api';
+const API = 'https://vajravel-backend1.onrender.com/api';
 
 async function request(url, options = {}) {
   const token = localStorage.getItem('pos_token');
