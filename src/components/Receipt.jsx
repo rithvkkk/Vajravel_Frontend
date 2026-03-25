@@ -1,9 +1,24 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { FiPrinter, FiDownload, FiX } from 'react-icons/fi';
 import html2pdf from 'html2pdf.js';
+import { db } from '../db';
 
 export default function Receipt({ sale, onClose }) {
   const receiptRef = useRef(null);
+  const [settings, setSettings] = useState({
+    storeName: 'VAJRAVEL CRACKERS',
+    phone: '9876543210',
+    gstin: '33ABCDE1234F1ZK'
+  });
+
+  useEffect(() => {
+    async function load() {
+      const s = await db.settings.toArray();
+      const map = Object.fromEntries(s.map(i => [i.key, i.val]));
+      setSettings(prev => ({ ...prev, ...map }));
+    }
+    load();
+  }, []);
 
   if (!sale) return null;
 
@@ -84,11 +99,11 @@ export default function Receipt({ sale, onClose }) {
             <div className="receipt-body">
               {/* Header with Logo */}
               <div className="receipt-header">
-                <img src="/logo.jpg" alt="Vajravel Crackers" className="receipt-logo" />
-                <div className="receipt-company">VAJRAVEL CRACKERS</div>
+                <img src="/logo.jpg" alt={settings.storeName} className="receipt-logo" />
+                <div className="receipt-company">{settings.storeName.toUpperCase()}</div>
                 <div className="receipt-tagline">Est. 2019 · Premium Fireworks</div>
                 <div className="receipt-contact">Sivakasi, Tamil Nadu</div>
-                <div className="receipt-contact">📞 9876543210</div>
+                <div className="receipt-contact">📞 {settings.phone}</div>
               </div>
 
               <div className="receipt-divider">{'─'.repeat(40)}</div>
@@ -133,10 +148,15 @@ export default function Receipt({ sale, onClose }) {
                 <div key={i} className="receipt-item-row">
                   <span style={{ flex: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.productName || item.name || `Item #${item.productId}`}
+                    {item.isGift && <span style={{ fontSize: 9, marginLeft: 4, fontWeight: 900 }}>(GIFT)</span>}
                   </span>
                   <span style={{ flex: 0.5, textAlign: 'center' }}>{item.quantity}</span>
-                  <span style={{ flex: 1, textAlign: 'right' }}>₹{Number(item.price).toLocaleString('en-IN')}</span>
-                  <span style={{ flex: 1, textAlign: 'right' }}>₹{Number(item.total || item.price * item.quantity).toLocaleString('en-IN')}</span>
+                  <span style={{ flex: 1, textAlign: 'right' }}>
+                    {item.isGift ? '₹0' : `₹${Number(item.price).toLocaleString('en-IN')}`}
+                  </span>
+                  <span style={{ flex: 1, textAlign: 'right' }}>
+                    ₹{Number(item.isGift ? 0 : (item.total || item.price * item.quantity)).toLocaleString('en-IN')}
+                  </span>
                 </div>
               ))}
 
@@ -144,12 +164,12 @@ export default function Receipt({ sale, onClose }) {
 
               {/* Totals */}
               <div className="receipt-info-row">
-                <span>Subtotal</span>
-                <span>₹{Number(sale.subtotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                <span>Items Total</span>
+                <span>₹{Number(sale.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
-              <div className="receipt-info-row">
-                <span>GST (18%)</span>
-                <span>₹{Number(sale.tax).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <div className="receipt-info-row" style={{ fontSize: 10, fontStyle: 'italic' }}>
+                <span>Includes GST (18%)</span>
+                <span>₹{Number(sale.tax || (sale.total - (sale.total / 1.18))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
               {sale.discount > 0 && (
                 <div className="receipt-info-row" style={{ color: '#22c997' }}>
@@ -159,7 +179,7 @@ export default function Receipt({ sale, onClose }) {
               )}
               <div className="receipt-divider-thin">{'─'.repeat(40)}</div>
               <div className="receipt-total-row">
-                <span>TOTAL</span>
+                <span>TOTAL BILL</span>
                 <span>₹{Number(sale.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
 
@@ -168,8 +188,8 @@ export default function Receipt({ sale, onClose }) {
               {/* Footer */}
               <div className="receipt-footer">
                 <div>🙏 Thank you for shopping!</div>
-                <div style={{ marginTop: 4 }}>Visit again — Vajravel Crackers</div>
-                <div style={{ marginTop: 8, fontSize: 10, opacity: 0.6 }}>GSTIN: 33ABCDE1234F1ZK</div>
+                <div style={{ marginTop: 4 }}>Visit again — {settings.storeName}</div>
+                <div style={{ marginTop: 8, fontSize: 10, opacity: 0.6 }}>GSTIN: {settings.gstin}</div>
                 <div style={{ fontSize: 10, opacity: 0.6 }}>Powered by Vajravel POS</div>
               </div>
             </div>

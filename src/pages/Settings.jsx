@@ -1,6 +1,38 @@
+import { useState, useEffect } from 'react';
+import { api } from '../api';
+import { db } from '../db';
 import { FiSave, FiInfo, FiDatabase, FiPrinter } from 'react-icons/fi';
 
 export default function Settings() {
+  const [loading, setLoading] = useState(true);
+  const [storeName, setStoreName] = useState('VAJRAVEL CRACKERS');
+  const [phone, setPhone] = useState('9876543210');
+  const [gstin, setGstin] = useState('33ABCDE1234F1ZK');
+  const [gstPct, setGstPct] = useState(18);
+
+  useEffect(() => {
+    async function load() {
+      const s = await db.settings.toArray();
+      const map = Object.fromEntries(s.map(i => [i.key, i.val]));
+      if (map.storeName) setStoreName(map.storeName);
+      if (map.phone) setPhone(map.phone);
+      if (map.gstin) setGstin(map.gstin);
+      if (map.gstPct) setGstPct(Number(map.gstPct));
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  const handleSave = async () => {
+    await db.settings.put({ key: 'storeName', val: storeName });
+    await db.settings.put({ key: 'phone', val: phone });
+    await db.settings.put({ key: 'gstin', val: gstin });
+    await db.settings.put({ key: 'gstPct', val: gstPct });
+    alert('Settings saved successfully!');
+  };
+
+  if (loading) return <div style={{ padding: 20, color: 'var(--text3)' }}>Loading settings...</div>;
+
   return (
     <div className="animate-in">
       <div className="card">
@@ -16,11 +48,15 @@ export default function Settings() {
             </div>
             <div className="input-group" style={{ maxWidth: 400 }}>
               <label>Store Name (Printed on Receipt)</label>
-              <input className="input-field" defaultValue="VAJRAVEL CRACKERS" disabled />
+              <input className="input-field" value={storeName} onChange={e => setStoreName(e.target.value)} />
             </div>
             <div className="input-group" style={{ maxWidth: 400 }}>
               <label>Contact Phone</label>
-              <input className="input-field" defaultValue="9876543210" disabled />
+              <input className="input-field" value={phone} onChange={e => setPhone(e.target.value)} />
+            </div>
+            <div className="input-group" style={{ maxWidth: 400 }}>
+              <label>GSTIN Number</label>
+              <input className="input-field" value={gstin} onChange={e => setGstin(e.target.value)} placeholder="33XXXXX..." />
             </div>
           </div>
 
@@ -30,7 +66,7 @@ export default function Settings() {
             </div>
             <div className="input-group" style={{ maxWidth: 200 }}>
               <label>Default GST Percentage</label>
-              <input className="input-field" type="number" defaultValue={18} disabled />
+              <input className="input-field" type="number" value={gstPct} onChange={e => setGstPct(e.target.value)} />
             </div>
           </div>
 
@@ -48,7 +84,7 @@ export default function Settings() {
         </div>
 
         <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="btn btn-primary" onClick={() => alert('Settings saved successfully!')}>
+          <button className="btn btn-primary" onClick={handleSave}>
             <FiSave /> Save Preferences
           </button>
         </div>

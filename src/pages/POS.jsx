@@ -41,7 +41,7 @@ export default function POS() {
       if (existing.quantity >= product.stock) return;
       setCart(cart.map(c => c.productId === product.id ? { ...c, quantity: c.quantity + 1 } : c));
     } else {
-      setCart([...cart, { productId: product.id, name: product.name, price: product.price, quantity: 1, maxStock: product.stock }]);
+      setCart([...cart, { productId: product.id, name: product.name, price: product.price, quantity: 1, maxStock: product.stock, isGift: false }]);
     }
   };
 
@@ -61,10 +61,20 @@ export default function POS() {
     setCart(cart.filter(c => c.productId !== productId));
   };
 
-  const subtotal = cart.reduce((s, c) => s + c.price * c.quantity, 0);
-  const tax = subtotal * 0.18; // 18% GST
+  const toggleGift = (productId) => {
+    setCart(cart.map(c => c.productId === productId ? { ...c, isGift: !c.isGift } : c));
+  };
+
+  const subtotal = cart.reduce((s, c) => s + (c.isGift ? 0 : c.price) * c.quantity, 0);
+  const tax = subtotal * 0.18; // 18% GST (assuming subtotal is base)
+  // If GST is INCLUDED in the product price, then:
+  // base = total / 1.18
+  // but let's stick to adding it on top if the user said "gst is included in the bill"
+  // Wait, "gst is included in the bill" usually means the total shown = price * qty.
+  const total = subtotal; 
+  const baseAmount = total / 1.18;
+  const inclusiveTax = total - baseAmount;
   const discount = 0;
-  const total = subtotal + tax - discount;
 
   const handlePrint = async () => {
     if (cart.length === 0 || isProcessing) return;
@@ -73,10 +83,15 @@ export default function POS() {
       const payload = {
         customerName: customerName || 'Walk-in Customer',
         customerPhone,
-        items: cart.map(c => ({ productId: c.productId, quantity: c.quantity, price: c.price })),
+        items: cart.map(c => ({ 
+          productId: c.productId, 
+          quantity: c.quantity, 
+          price: c.price,
+          isGift: !!c.isGift 
+        })),
         subtotal,
         discount,
-        tax,
+        tax: inclusiveTax, // Use the inclusive tax calculated above
         total,
         paymentMethod,
       };
@@ -177,8 +192,17 @@ export default function POS() {
             cart.map(item => (
               <div key={item.productId} className="cart-item">
                 <div className="cart-item-info">
-                  <div className="cart-item-name">{item.name}</div>
-                  <div className="cart-item-price">₹{Number(item.price).toLocaleString('en-IN')} × {item.quantity}</div>
+                  <div className="cart-item-name">
+                    {item.name} {item.isGift && <span className="tag tag-amber" style={{ fontSize: 9 }}>GIFT</span>}
+                  </div>
+                  <div className="cart-item-price">
+                    {item.isGift ? <span style={{ textDecoration: 'line-through', opacity: 0.5 }}>₹{item.price}</span> : `₹${Number(item.price).toLocaleString('en-IN')}`} × {item.quantity}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                   <button className="qty-btn" title="Mark as Gift" onClick={() => toggleGift(item.productId)} style={{ color: item.isGift ? 'var(--amber)' : 'var(--text3)' }}>
+                     {item.isGift ? '🎁' : '➕🎁'}
+                   </button>
                 </div>
                 <div className="cart-item-qty">
                   <button className="qty-btn" onClick={() => updateQty(item.productId, -1)}><FiMinus /></button>
@@ -198,11 +222,14 @@ export default function POS() {
 
         <div className="pos-cart-footer">
           <div className="cart-summary">
-            <div className="cart-row"><span>Subtotal</span><span>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
-            <div className="cart-row"><span>GST (18%)</span><span>₹{tax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+            <div className="cart-row"><span>Items Total</span><span>₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+            <div className="cart-row" style={{ fontSize: 11, color: 'var(--text3)' }}>
+              <span>Includes GST (18%)</span>
+              <span>₹{inclusiveTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            </div>
             {discount > 0 && <div className="cart-row" style={{ color: 'var(--teal)' }}><span>Discount</span><span>-₹{discount.toLocaleString('en-IN')}</span></div>}
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-              <div className="cart-row total"><span>Total</span><span>₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+              <div className="cart-row total"><span>Total Bill</span><span>₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
             </div>
           </div>
 
@@ -245,9 +272,8 @@ export default function POS() {
             <div style={{ background: 'var(--surface2)', borderRadius: 12, padding: 16, marginBottom: 20 }}>
               <div className="cart-summary">
                 <div className="cart-row"><span>Items</span><span>{cart.reduce((a, c) => a + c.quantity, 0)}</span></div>
-                <div className="cart-row"><span>Subtotal</span><span>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
-                <div className="cart-row"><span>GST (18%)</span><span>₹{tax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
-                <div className="cart-row total"><span>Total</span><span>₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                <div className="cart-row total"><span>Net Payable</span><span>₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                <div className="cart-row" style={{ fontSize: 11, color: 'var(--text3)' }}><span>(Inclusive of all taxes)</span></div>
               </div>
             </div>
 

@@ -7,6 +7,7 @@ import Sales from './pages/Sales';
 import Login from './pages/Login';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
+import SyncManager from './components/SyncManager';
 import './index.css';
 
 import { FiHome, FiShoppingCart, FiBox, FiList, FiUsers, FiSettings, FiBell, FiSearch, FiLogOut, FiMenu } from 'react-icons/fi';
@@ -142,6 +143,7 @@ export default function App() {
           {page === 'users' && user?.role === 'admin' && <Users />}
           {page === 'settings' && <Settings />}
         </div>
+        <SyncManager />
       </div>
     </div>
   );

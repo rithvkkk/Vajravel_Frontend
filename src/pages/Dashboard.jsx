@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
-import { FiDollarSign, FiShoppingBag, FiPackage, FiAlertTriangle, FiTrendingUp, FiActivity } from 'react-icons/fi';
+import { FiDollarSign, FiShoppingBag, FiPackage, FiAlertTriangle, FiTrendingUp, FiActivity, FiCloud, FiCloudOff } from 'react-icons/fi';
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
+  const [unsyncedCount, setUnsyncedCount] = useState(0);
 
   useEffect(() => {
     api.getDashboard().then(setStats).catch(() => {});
     api.getProducts().then(setProducts).catch(() => {});
     api.getSales().then(s => setSales(s.slice(0, 5))).catch(() => {});
+    api.getUnsyncedCount().then(setUnsyncedCount).catch(() => {});
   }, []);
 
   if (!stats) return <div style={{ textAlign: 'center', padding: 40, color: 'var(--text3)' }}>Loading dashboard...</div>;
@@ -27,7 +29,22 @@ export default function Dashboard() {
   return (
     <div>
       {/* KPI Cards */}
-      <div className="kpi-grid">
+      <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+        <div className="kpi-card animate-in animate-in-1">
+          <div className="kpi-top">
+            <span className="kpi-label">Sync Status</span>
+            <div className="kpi-icon" style={{ 
+              background: unsyncedCount > 0 ? 'var(--amber-light)' : 'var(--teal-light)', 
+              color: unsyncedCount > 0 ? 'var(--amber)' : 'var(--teal)' 
+            }}>
+              {unsyncedCount > 0 ? <FiCloudOff /> : <FiCloud />}
+            </div>
+          </div>
+          <div className="kpi-value">{unsyncedCount === 0 ? 'Synced' : unsyncedCount}</div>
+          <div className="kpi-meta neutral">
+            {unsyncedCount === 0 ? 'All data in cloud' : 'Pending upload'}
+          </div>
+        </div>
         <div className="kpi-card animate-in animate-in-1">
           <div className="kpi-top">
             <span className="kpi-label">Today's Revenue</span>
