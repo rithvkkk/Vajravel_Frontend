@@ -12,13 +12,6 @@ export default function Sales() {
   };
   useEffect(load, []);
 
-  const handleClear = async () => {
-    if (confirm('Are you sure you want to clear ALL sales history? This cannot be undone.')) {
-      await api.clearSales();
-      load();
-    }
-  };
-
   const safeSales = Array.isArray(sales) ? sales : [];
 
   const filtered = safeSales.filter(s => {

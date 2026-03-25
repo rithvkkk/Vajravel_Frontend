@@ -25,7 +25,6 @@ export default function POS() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [showCheckout, setShowCheckout] = useState(false);
-  const [lastSale, setLastSale] = useState(null);
   const [showCamera, setShowCamera] = useState(false);
   const [completeSale, setCompleteSale] = useState(null); // This seems to be the new state for the completed sale
 
@@ -65,12 +64,6 @@ export default function POS() {
   const tax = subtotal * 0.18; // 18% GST
   const discount = 0;
   const total = subtotal + tax - discount;
-
-  const handleCheckout = async () => {
-    if (cart.length === 0) return;
-    // This function now just sets up the modal, the actual sale creation is in handlePrint
-    setShowCheckout(true);
-  };
 
   const handlePrint = async () => {
     if (cart.length === 0) return;

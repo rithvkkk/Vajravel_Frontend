@@ -21,7 +21,9 @@ export default function CameraScanner({ onScan, onClose }) {
     return () => {
       try {
         scanner.clear();
-      } catch(e) {}
+      } catch {
+        // ignore errors
+      }
     };
   }, [onScan]);
 
