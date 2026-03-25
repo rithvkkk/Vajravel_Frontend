@@ -26,7 +26,8 @@ export default function POS() {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [showCheckout, setShowCheckout] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [completeSale, setCompleteSale] = useState(null); // This seems to be the new state for the completed sale
+  const [completeSale, setCompleteSale] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     api.getProducts().then(setProducts).catch(() => {});
@@ -66,7 +67,8 @@ export default function POS() {
   const total = subtotal + tax - discount;
 
   const handlePrint = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || isProcessing) return;
+    setIsProcessing(true);
     try {
       const payload = {
         customerName: customerName || 'Walk-in Customer',
@@ -78,8 +80,11 @@ export default function POS() {
         total,
         paymentMethod,
       };
+      console.log('Sending sale payload:', payload);
       const sale = await api.createSale(payload);
-      setCompleteSale(sale); // Use setCompleteSale as per the diff
+      console.log('Received sale response:', sale);
+      
+      setCompleteSale(sale);
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
@@ -87,7 +92,10 @@ export default function POS() {
       // Refresh products for updated stock
       api.getProducts().then(setProducts);
     } catch(err) {
-      alert('Error: ' + err.message);
+      console.error('POS Checkout Error:', err);
+      alert('Checkout Error: ' + (err.message || 'Unknown error occurred. Check browser console.'));
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -244,9 +252,9 @@ export default function POS() {
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-ghost" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setShowCheckout(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex: 2, justifyContent: 'center', padding: '12px 0' }} onClick={handlePrint}>
-                <FiCheck /> Confirm & Print Bill
+              <button className="btn btn-ghost" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setShowCheckout(false)} disabled={isProcessing}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 2, justifyContent: 'center', padding: '12px 0', opacity: isProcessing ? 0.7 : 1 }} disabled={isProcessing} onClick={handlePrint}>
+                <FiCheck /> {isProcessing ? 'Processing Bill...' : 'Confirm & Print Bill'}
               </button>
             </div>
           </div>
