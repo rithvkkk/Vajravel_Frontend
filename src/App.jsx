@@ -6,9 +6,10 @@ import Inventory from './pages/Inventory';
 import Sales from './pages/Sales';
 import Login from './pages/Login';
 import Users from './pages/Users';
+import Settings from './pages/Settings';
 import './index.css';
 
-import { FiHome, FiShoppingCart, FiBox, FiList, FiUsers, FiSettings, FiBell, FiSearch, FiLogOut } from 'react-icons/fi';
+import { FiHome, FiShoppingCart, FiBox, FiList, FiUsers, FiSettings, FiBell, FiSearch, FiLogOut, FiMenu } from 'react-icons/fi';
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: <FiHome /> },
@@ -25,6 +26,7 @@ export default function App() {
   });
   const [page, setPage] = useState('dashboard');
   const [seeded, setSeeded] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Auto-seed on first load
@@ -62,12 +64,16 @@ export default function App() {
     inventory: 'Manage your crackers catalog',
     sales: 'View all past transactions',
     users: 'Manage cashiers and administrators',
+    settings: 'Configure application preferences',
   };
 
   return (
     <div className="app-layout">
+      {/* SIDEBAR OVERLAY */}
+      {sidebarOpen && <div className="sidebar-overlay open" onClick={() => setSidebarOpen(false)} />}
+      
       {/* SIDEBAR */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <img src="/logo.jpg" alt="Vajravel Crackers" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
           <div>
@@ -84,7 +90,7 @@ export default function App() {
               <button
                 key={n.id}
                 className={`nav-item ${page === n.id ? 'active' : ''}`}
-                onClick={() => setPage(n.id)}
+                onClick={() => { setPage(n.id); setSidebarOpen(false); }}
               >
                 <span className="nav-icon">{n.icon}</span>
                 {n.label}
@@ -95,7 +101,7 @@ export default function App() {
 
         <div className="sidebar-section" style={{ marginTop: 'auto', paddingTop: 16 }}>System</div>
         <nav className="sidebar-nav" style={{ paddingBottom: 16 }}>
-          <button className="nav-item">
+          <button className={`nav-item ${page === 'settings' ? 'active' : ''}`} onClick={() => { setPage('settings'); setSidebarOpen(false); }}>
             <span className="nav-icon"><FiSettings /></span>
             Settings
           </button>
@@ -106,6 +112,9 @@ export default function App() {
       <div className="main-content">
         <header className="topbar">
           <div className="topbar-left">
+            <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>
+              <FiMenu />
+            </button>
             <div>
               <div className="topbar-title">{pageTitle[page]}</div>
               <div className="topbar-sub">{pageSub[page]}</div>
@@ -131,6 +140,7 @@ export default function App() {
           {page === 'inventory' && <Inventory />}
           {page === 'sales' && <Sales />}
           {page === 'users' && user?.role === 'admin' && <Users />}
+          {page === 'settings' && <Settings />}
         </div>
       </div>
     </div>
