@@ -129,7 +129,7 @@ export default function Dashboard() {
             <div className="card-title">Recent Sales</div>
             <span className="tag tag-green">{stats.totalSales} total</span>
           </div>
-          {sales.length === 0 ? (
+          {allSales.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24, color: 'var(--text3)' }}>No sales yet — start billing!</div>
           ) : (
             <div className="tbl-wrap">
