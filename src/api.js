@@ -30,7 +30,24 @@ async function request(url, options = {}) {
 
 export const api = {
   // Auth & Users
-  login: (username, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  login: async (username, password) => {
+    try {
+      const resp = await request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+      if (resp.user) {
+        // Save user profile locally for offline authentication
+        await db.users.put({ ...resp.user, cachedAt: new Date().toISOString() });
+      }
+      return resp;
+    } catch (err) {
+      // Offline fallback: check local IndexedDB
+      const localUser = await db.users.get(username);
+      if (localUser) {
+        console.warn('Offline login successful for:', username);
+        return { token: 'offline_token', user: localUser, isOffline: true };
+      }
+      throw err;
+    }
+  },
   getUsers: () => request('/users'),
   addUser: (data) => request('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
@@ -42,11 +59,11 @@ export const api = {
   getCategories: async () => {
     try {
       const categories = await request('/categories');
-      await db.settings.put({ key: 'categories_cache', val: categories });
+      await db.categories.clear();
+      await db.categories.bulkAdd(categories);
       return categories;
     } catch (err) {
-      const cached = await db.settings.get('categories_cache');
-      return cached ? cached.val : [];
+      return await db.categories.toArray();
     }
   },
   addCategory: (name) => request('/categories', { method: 'POST', body: JSON.stringify({ name }) }),

@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
 import SyncManager from './components/SyncManager';
+import logo from './assets/logo.jpg';
 import './index.css';
 
 import { FiHome, FiShoppingCart, FiBox, FiList, FiUsers, FiSettings, FiBell, FiSearch, FiLogOut, FiMenu } from 'react-icons/fi';
@@ -76,7 +77,7 @@ export default function App() {
       {/* SIDEBAR */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
-          <img src="/logo.jpg" alt="Vajravel Crackers" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+          <img src={logo} alt="Vajravel Crackers" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
           <div>
             <div style={{ fontSize: 15 }}>Vajravel</div>
             <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: "'DM Sans',sans-serif", fontWeight: 400, letterSpacing: '.04em' }}>CRACKERS POS</div>
@@ -122,13 +123,13 @@ export default function App() {
             </div>
           </div>
           <div className="topbar-right">
-            <div className="icon-btn"><FiSearch /></div>
-            <div className="icon-btn" style={{ position: 'relative' }}>
+            <button className="icon-btn" onClick={() => setPage('inventory')} title="Search Products"><FiSearch /></button>
+            <div className="icon-btn" style={{ position: 'relative' }} title="Notifications">
               <FiBell />
               <div style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, borderRadius: '50%', background: 'var(--red)', border: '2px solid var(--surface)' }}></div>
             </div>
-            <div className="avatar">VC</div>
-            <div style={{ fontSize: 13, color: 'var(--text2)', textTransform: 'capitalize' }}>{user?.username}</div>
+            <img src={logo} alt="User" style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid var(--border)' }} />
+            <div style={{ fontSize: 13, color: 'var(--text2)', textTransform: 'capitalize', fontWeight: 600 }}>{user?.username}</div>
             <button className="icon-btn" title="Logout" onClick={handleLogout}>
               <FiLogOut />
             </button>

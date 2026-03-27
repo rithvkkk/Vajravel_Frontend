@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { FiPrinter, FiDownload, FiX } from 'react-icons/fi';
 import html2pdf from 'html2pdf.js';
 import { db } from '../db';
+import logo from '../assets/logo.jpg';
 
 export default function Receipt({ sale, onClose }) {
   const receiptRef = useRef(null);
@@ -99,7 +100,7 @@ export default function Receipt({ sale, onClose }) {
             <div className="receipt-body">
               {/* Header with Logo */}
               <div className="receipt-header">
-                <img src="/logo.jpg" alt={settings.storeName} className="receipt-logo" />
+                <img src={logo} alt={settings.storeName} className="receipt-logo" />
                 <div className="receipt-company">{settings.storeName.toUpperCase()}</div>
                 <div className="receipt-tagline">Est. 2019 · Premium Fireworks</div>
                 <div className="receipt-contact">Sivakasi, Tamil Nadu</div>

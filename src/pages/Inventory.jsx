@@ -3,6 +3,8 @@ import { api } from '../api';
 import { FiSearch, FiPlus, FiEdit2, FiTrash2, FiX, FiSave, FiCamera } from 'react-icons/fi';
 import useBarcodeScanner from '../hooks/useBarcodeScanner';
 import CameraScanner from '../components/CameraScanner';
+import BarcodeGenerator from '../components/BarcodeGenerator';
+import { FiMaximize, FiPrinter } from 'react-icons/fi';
 
 export default function Inventory() {
   const [products, setProducts] = useState([]);
@@ -12,6 +14,7 @@ export default function Inventory() {
   const [showModal, setShowModal] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
+  const [barcodeProduct, setBarcodeProduct] = useState(null);
   const [form, setForm] = useState({ name: '', sku: '', price: '', costPrice: '', stock: '', unit: 'pcs', categoryName: '' });
 
   const load = () => {
@@ -140,6 +143,7 @@ export default function Inventory() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn btn-ghost btn-sm" title="Generate Barcode" onClick={() => setBarcodeProduct(p)}><FiMaximize /></button>
                         <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}><FiEdit2 /></button>
                         <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => handleDelete(p.id)}><FiTrash2 /></button>
                       </div>
@@ -208,6 +212,29 @@ export default function Inventory() {
                 <FiSave /> {editProduct ? 'Update Product' : 'Add Product'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* BARCODE PREVIEW MODAL */}
+      {barcodeProduct && (
+        <div className="modal-overlay" onClick={() => setBarcodeProduct(null)}>
+          <div className="modal" style={{ width: 340, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div className="modal-title" style={{ margin: 0 }}>Product Barcode</div>
+              <button className="icon-btn" onClick={() => setBarcodeProduct(null)}><FiX /></button>
+            </div>
+            
+            <div style={{ padding: 20, background: '#f8f9fa', borderRadius: 12, marginBottom: 20 }}>
+              <BarcodeGenerator value={barcodeProduct.sku} width={1.5} height={60} />
+            </div>
+
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{barcodeProduct.name}</div>
+            <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 24 }}>SKU: {barcodeProduct.sku}</div>
+
+            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => window.print()}>
+              <FiPrinter /> Print Label
+            </button>
           </div>
         </div>
       )}

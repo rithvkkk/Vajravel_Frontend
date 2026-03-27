@@ -83,7 +83,15 @@ export default function Settings() {
 
         </div>
 
-        <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn btn-ghost btn-sm" onClick={async () => {
+              if (window.confirm('Delete local data?')) { await db.delete(); window.location.reload(); }
+            }}>Reset Data</button>
+            <button className="btn btn-ghost btn-sm" onClick={async () => {
+              try { await api.seed(); alert('Seeded!'); window.location.reload(); } catch(e) { alert(e.message); }
+            }}>Re-Seed</button>
+          </div>
           <button className="btn btn-primary" onClick={handleSave}>
             <FiSave /> Save Preferences
           </button>

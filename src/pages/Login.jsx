@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { FiLock, FiUser, FiArrowRight } from 'react-icons/fi';
+import logo from '../assets/logo.jpg';
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -13,10 +14,15 @@ export default function Login({ onLogin }) {
     setError('');
     setLoading(true);
     try {
-      const { token, user } = await api.login(username, password);
-      localStorage.setItem('pos_token', token);
-      localStorage.setItem('pos_user', JSON.stringify(user));
-      onLogin(user);
+      const resp = await api.login(username, password);
+      localStorage.setItem('pos_token', resp.token);
+      localStorage.setItem('pos_user', JSON.stringify(resp.user));
+      if (resp.isOffline) {
+        setError('Working in Offline Mode. Syncing enabled.');
+        setTimeout(() => onLogin(resp.user), 1500);
+      } else {
+        onLogin(resp.user);
+      }
     } catch (err) {
       setError(err.message || 'Invalid credentials');
     } finally {
@@ -28,7 +34,7 @@ export default function Login({ onLogin }) {
     <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
       <div className="card animate-in" style={{ width: 400, padding: 32, textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-          <img src="/logo.jpg" alt="Vajravel Crackers" style={{ width: 80, height: 80, borderRadius: 20, objectFit: 'cover', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }} />
+          <img src={logo} alt="Vajravel Crackers" style={{ width: 80, height: 80, borderRadius: 20, objectFit: 'cover', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }} />
         </div>
         <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 24, fontWeight: 700, marginBottom: 4 }}>Welcome Back</div>
         <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 32 }}>Vajravel Crackers Cloud POS</div>
