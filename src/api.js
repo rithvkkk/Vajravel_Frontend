@@ -112,25 +112,38 @@ export const api = {
     }
   },
   createSale: async (data) => {
-    // 1. Save locally first with a unique client ID
+    // 1. Generate client-side identifiers immediately
     const clientSaleId = crypto.randomUUID();
-    const localId = await db.sales.add({ 
+    const now = new Date().toISOString();
+
+    // Generate a local invoice number from existing count
+    const localCount = await db.sales.count();
+    const invoiceNumber = `OFL-${String(localCount + 1).padStart(5, '0')}`;
+
+    const localRecord = { 
       ...data, 
       clientSaleId,
-      synced: 0, 
-      date: new Date().toISOString() 
-    });
+      invoiceNumber,
+      createdAt: now,
+      date: now,
+      synced: 0,
+    };
+    const localId = await db.sales.add(localRecord);
     
     try {
-      // 2. Try to push to remote
+      // 2. Try to push to remote (server assigns the final VC-XXXXX number)
       const sale = await request('/sales', { method: 'POST', body: JSON.stringify({ ...data, clientSaleId }) });
-      // 3. Mark as synced
-      await db.sales.update(localId, { synced: 1, id: sale.id });
+      // 3. Update local record with server data (official invoice #, id, timestamp)
+      await db.sales.update(localId, { 
+        synced: 1, 
+        id: sale.id, 
+        invoiceNumber: sale.invoiceNumber, 
+        createdAt: sale.createdAt 
+      });
       return sale;
     } catch (err) {
       console.warn('Sale saved offline. Will sync later.');
-      const offlineSale = await db.sales.get(localId);
-      return { ...offlineSale, id: `offline_${localId}`, isOffline: true };
+      return { ...localRecord, localId, id: `offline_${localId}`, isOffline: true };
     }
   },
   clearSales: () => request('/sales', { method: 'DELETE' }),
