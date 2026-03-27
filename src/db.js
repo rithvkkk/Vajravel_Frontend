@@ -2,11 +2,11 @@ import Dexie from 'dexie';
 
 export const db = new Dexie('VajravelPOS');
 
-db.version(2).stores({
-  products: 'id, sku, name, categoryName',
-  sales: '++localId, id, invoiceNumber, synced', // synced: 0 or 1
-  categories: 'id, name',
-  users: 'username', // Store local user profiles for offline auth
+db.version(3).stores({
+  products: 'id, sku, name, categoryName, updatedAt',
+  sales: '++localId, id, invoiceNumber, synced, createdAt', // synced: 0 or 1
+  categories: 'id, name, updatedAt',
+  users: 'username', 
   settings: 'key'
 });
 

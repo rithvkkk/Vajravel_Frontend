@@ -16,6 +16,7 @@ export default function Inventory() {
   const [editProduct, setEditProduct] = useState(null);
   const [barcodeProduct, setBarcodeProduct] = useState(null);
   const [form, setForm] = useState({ name: '', sku: '', price: '', costPrice: '', stock: '', unit: 'pcs', categoryName: '' });
+  const [user] = useState(() => JSON.parse(localStorage.getItem('pos_user')) || {});
 
   const load = () => {
     api.getProducts().then(setProducts).catch(() => {});
@@ -124,7 +125,16 @@ export default function Inventory() {
         <div className="tbl-wrap">
           <table>
             <thead>
-              <tr><th>Product</th><th>SKU</th><th>Category</th><th>Price</th><th>Cost</th><th>Margin</th><th>Stock</th><th>Actions</th></tr>
+              <tr>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>Category</th>
+                <th>Price</th>
+                {user.role === 'admin' && <th>Cost</th>}
+                {user.role === 'admin' && <th>Margin</th>}
+                <th>Stock</th>
+                <th>Actions</th>
+              </tr>
             </thead>
             <tbody>
               {filtered.map(p => {
@@ -136,8 +146,8 @@ export default function Inventory() {
                     <td className="td-muted">{p.sku}</td>
                     <td><span className="tag tag-blue">{p.categoryName}</span></td>
                     <td className="td-bold">₹{Number(p.price).toLocaleString('en-IN')}</td>
-                    <td className="td-muted">₹{Number(p.costPrice).toLocaleString('en-IN')}</td>
-                    <td><span className="tag tag-green">{margin}%</span></td>
+                    {user.role === 'admin' && <td className="td-muted">₹{Number(p.costPrice).toLocaleString('en-IN')}</td>}
+                    {user.role === 'admin' && <td><span className="tag tag-green">{margin}%</span></td>}
                     <td>
                       <span style={{ fontWeight: 600, color: stockColor }}>{p.stock} {p.unit}</span>
                     </td>

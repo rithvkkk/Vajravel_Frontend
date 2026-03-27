@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { db } from '../db';
-import { FiSave, FiInfo, FiDatabase, FiPrinter } from 'react-icons/fi';
+import { FiSave, FiInfo, FiDatabase, FiPrinter, FiDownload, FiUpload } from 'react-icons/fi';
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
@@ -29,6 +29,22 @@ export default function Settings() {
     await db.settings.put({ key: 'gstin', val: gstin });
     await db.settings.put({ key: 'gstPct', val: gstPct });
     alert('Settings saved successfully!');
+  };
+
+  const handleExport = async () => {
+    const data = {
+      products: await db.products.toArray(),
+      sales: await db.sales.toArray(),
+      categories: await db.categories.toArray(),
+      settings: await db.settings.toArray(),
+      exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Vajravel_POS_Backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
   };
 
   if (loading) return <div style={{ padding: 20, color: 'var(--text3)' }}>Loading settings...</div>;
@@ -70,14 +86,24 @@ export default function Settings() {
             </div>
           </div>
 
+          <div style={{ padding: 16, background: 'var(--surface2)', borderRadius: 12, border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontWeight: 600, fontSize: 15 }}>
+              <FiDatabase color="var(--blue)" /> Data Management & Backup
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 16 }}>Download a full snapshot of your POS data for manual backup or transfer.</p>
+            <button className="btn btn-ghost" style={{ border: '1px solid var(--border)' }} onClick={handleExport}>
+              <FiDownload style={{ marginRight: 8 }} /> Export Full JSON Backup
+            </button>
+          </div>
+
           <div style={{ padding: 16, background: 'rgba(34, 153, 221, 0.05)', borderRadius: 12, border: '1px solid var(--blue-dark)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontWeight: 600, fontSize: 14, color: 'var(--blue)' }}>
               <FiInfo /> System Information
             </div>
             <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>
-              <div>Version: <strong>2.4.0 (Cloud)</strong></div>
-              <div>Database: <strong>MongoDB Atlas (Connected)</strong></div>
-              <div>Environment: <strong>Production</strong></div>
+              <div>Version: <strong>2.6.0 (Enterprise)</strong></div>
+              <div>Database: <strong>IndexedDB (Offline) + MongoDB (Sync)</strong></div>
+              <div>Environment: <strong>Production Mode</strong></div>
             </div>
           </div>
 

@@ -80,17 +80,26 @@ export const api = {
       return await db.products.toArray();
     }
   },
-  addProduct: (data) => request('/products', { method: 'POST', body: JSON.stringify(data) }),
-  updateProduct: (id, data) => request(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  addProduct: (data) => request('/products', { method: 'POST', body: JSON.stringify({ ...data, updatedAt: new Date().toISOString() }) }),
+  updateProduct: async (id, data) => {
+    // Basic conflict resolution: pull latest to check before push (simplified)
+    const remote = await request(`/products/${id}`);
+    if (remote.updatedAt && data.updatedAt && new Date(remote.updatedAt) > new Date(data.updatedAt)) {
+      throw new Error('Conflict: Product was updated by another device. Refreshing.');
+    }
+    return request(`/products/${id}`, { method: 'PUT', body: JSON.stringify({ ...data, updatedAt: new Date().toISOString() }) });
+  },
   deleteProduct: (id) => request(`/products/${id}`, { method: 'DELETE' }),
 
   // Sales
   getSales: async () => {
     try {
       const remote = await request('/sales');
-      const localUnsynced = await db.sales.where('synced').equals(0).toArray();
-      return [...localUnsynced, ...remote];
+      // Update local cache with remote sales
+      await db.sales.bulkPut(remote.map(s => ({ ...s, synced: 1 })));
+      return await db.sales.toArray();
     } catch (err) {
+      console.warn('Using offline sales history');
       return await db.sales.toArray();
     }
   },

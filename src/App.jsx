@@ -14,11 +14,11 @@ import './index.css';
 import { FiHome, FiShoppingCart, FiBox, FiList, FiUsers, FiSettings, FiBell, FiSearch, FiLogOut, FiMenu } from 'react-icons/fi';
 
 const NAV = [
-  { id: 'dashboard', label: 'Dashboard', icon: <FiHome /> },
-  { id: 'pos', label: 'Point of Sale', icon: <FiShoppingCart /> },
-  { id: 'inventory', label: 'Inventory', icon: <FiBox /> },
-  { id: 'sales', label: 'Sales History', icon: <FiList /> },
-  { id: 'users', label: 'System Users', icon: <FiUsers /> },
+  { id: 'dashboard', label: 'Dashboard', icon: <FiHome />, roles: ['admin', 'staff'] },
+  { id: 'pos', label: 'Point of Sale', icon: <FiShoppingCart />, roles: ['admin', 'staff'] },
+  { id: 'inventory', label: 'Inventory', icon: <FiBox />, roles: ['admin', 'staff'] },
+  { id: 'sales', label: 'Sales History', icon: <FiList />, roles: ['admin', 'staff'] },
+  { id: 'users', label: 'System Users', icon: <FiUsers />, roles: ['admin'] },
 ];
 
 export default function App() {
@@ -101,13 +101,17 @@ export default function App() {
           })}
         </nav>
 
-        <div className="sidebar-section" style={{ marginTop: 'auto', paddingTop: 16 }}>System</div>
-        <nav className="sidebar-nav" style={{ paddingBottom: 16 }}>
-          <button className={`nav-item ${page === 'settings' ? 'active' : ''}`} onClick={() => { setPage('settings'); setSidebarOpen(false); }}>
-            <span className="nav-icon"><FiSettings /></span>
-            Settings
-          </button>
-        </nav>
+        {user?.role === 'admin' && (
+          <>
+            <div className="sidebar-section" style={{ marginTop: 'auto', paddingTop: 16 }}>System</div>
+            <nav className="sidebar-nav" style={{ paddingBottom: 16 }}>
+              <button className={`nav-item ${page === 'settings' ? 'active' : ''}`} onClick={() => { setPage('settings'); setSidebarOpen(false); }}>
+                <span className="nav-icon"><FiSettings /></span>
+                Settings
+              </button>
+            </nav>
+          </>
+        )}
       </aside>
 
       {/* MAIN AREA */}

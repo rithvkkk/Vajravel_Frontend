@@ -33,8 +33,13 @@ export default function SyncManager() {
     
     // Check every 30 seconds
     const statusInterval = setInterval(checkSyncStatus, 30000);
-    // Try to sync every 2 minutes if connected
+    // Sync every 2 minutes if connected
     const syncInterval = setInterval(performSync, 120000);
+
+    // Pull NEW products/categories every 5 minutes
+    const pullInterval = setInterval(async () => {
+      try { await api.getProducts(); await api.getCategories(); } catch(e){}
+    }, 300000);
 
     // Also sync on window focus (potential internet return)
     window.addEventListener('focus', checkSyncStatus);
@@ -42,6 +47,7 @@ export default function SyncManager() {
     return () => {
       clearInterval(statusInterval);
       clearInterval(syncInterval);
+      clearInterval(pullInterval);
       window.removeEventListener('focus', checkSyncStatus);
     };
   }, []);

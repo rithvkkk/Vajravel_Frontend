@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
-import { FiDollarSign, FiShoppingBag, FiPackage, FiAlertTriangle, FiTrendingUp, FiActivity, FiCloud, FiCloudOff } from 'react-icons/fi';
+import { FiDollarSign, FiShoppingBag, FiPackage, FiAlertTriangle, FiTrendingUp, FiActivity, FiCloud, FiCloudOff, FiPieChart } from 'react-icons/fi';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
-  const [sales, setSales] = useState([]);
+  const [allSales, setAllSales] = useState([]);
   const [unsyncedCount, setUnsyncedCount] = useState(0);
+  const [user] = useState(() => JSON.parse(localStorage.getItem('pos_user')) || {});
 
   useEffect(() => {
     api.getDashboard().then(setStats).catch(() => {});
     api.getProducts().then(setProducts).catch(() => {});
-    api.getSales().then(s => setSales(s.slice(0, 5))).catch(() => {});
+    api.getSales().then(setAllSales).catch(() => {});
     api.getUnsyncedCount().then(setUnsyncedCount).catch(() => {});
   }, []);
 
@@ -25,6 +27,36 @@ export default function Dashboard() {
 
   const lowStockProducts = products.filter(p => p.stock < 20).sort((a, b) => a.stock - b.stock).slice(0, 6);
   const topProducts = products.sort((a, b) => b.price - a.price).slice(0, 5);
+  
+  // Calculate Profit (Admin Only)
+  const totalProfit = allSales.reduce((sum, s) => {
+    const saleProfit = (s.items || []).reduce((itemSum, item) => {
+      const product = products.find(p => p.id === item.productId || p.sku === item.sku);
+      if (product && !item.isGift) {
+        return itemSum + (item.price - product.costPrice) * item.quantity;
+      }
+      return itemSum;
+    }, 0);
+    return sum + (saleProfit - (s.discount || 0));
+  }, 0);
+
+  // Category Data for Chart
+  const categoryData = products.reduce((acc, p) => {
+    const existing = acc.find(c => c.name === p.categoryName);
+    const salesCount = allSales.reduce((count, s) => {
+      const itemCount = (s.items || []).filter(i => i.productId === p.id || i.sku === p.sku).reduce((sum, i) => sum + i.quantity, 0);
+      return count + itemCount;
+    }, 0);
+    
+    if (existing) {
+      existing.value += salesCount;
+    } else if (p.categoryName) {
+      acc.push({ name: p.categoryName, value: salesCount });
+    }
+    return acc;
+  }, []).filter(c => c.value > 0);
+
+  const COLORS = ['#22c997', '#4a8cff', '#f0a030', '#8b5cf6', '#ef4444', '#fb923c'];
 
   return (
     <div>
@@ -77,6 +109,17 @@ export default function Dashboard() {
           <div className="kpi-value">{stats.lowStock}</div>
           <div className="kpi-meta down">items below threshold</div>
         </div>
+
+        {user.role === 'admin' && (
+          <div className="kpi-card animate-in animate-in-1" style={{ border: '1px solid var(--teal)', background: 'rgba(34, 201, 151, 0.05)' }}>
+            <div className="kpi-top">
+              <span className="kpi-label" style={{ color: 'var(--teal)' }}>Net Profit Margin</span>
+              <div className="kpi-icon" style={{ background: 'var(--teal)', color: '#fff' }}><FiTrendingUp /></div>
+            </div>
+            <div className="kpi-value">₹{totalProfit.toLocaleString('en-IN')}</div>
+            <div className="kpi-meta up">Estimated earnings</div>
+          </div>
+        )}
       </div>
 
       <div className="grid-2">
@@ -93,7 +136,7 @@ export default function Dashboard() {
               <table>
                 <thead><tr><th>Invoice</th><th>Customer</th><th>Total</th><th>Status</th></tr></thead>
                 <tbody>
-                  {sales.map(s => (
+                  {allSales.slice(0, 5).map(s => (
                     <tr key={s.id}>
                       <td className="td-bold">{s.invoiceNumber}</td>
                       <td>{s.customerName}</td>
@@ -137,6 +180,41 @@ export default function Dashboard() {
               })}
             </div>
           )}
+        </div>
+
+        {/* Category Breakdown Chart */}
+        <div className="card animate-in" style={{ animationDelay: '.4s', gridColumn: 'span 2' }}>
+          <div className="card-header">
+            <div className="card-title"><FiPieChart style={{ marginRight: 8 }} /> Sales by Category</div>
+          </div>
+          <div style={{ height: 300, width: '100%', marginTop: 20 }}>
+            {categoryData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}
+                    itemStyle={{ color: 'var(--text)' }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ textAlign: 'center', paddingTop: 100, color: 'var(--text3)' }}>Insufficient sales data for charting</div>
+            )}
+          </div>
         </div>
       </div>
 
