@@ -59,6 +59,8 @@ export default function App() {
     pos: 'Point of Sale',
     inventory: 'Inventory & Products',
     sales: 'Sales History',
+    users: 'System Users',
+    settings: 'System Settings',
   };
   const pageSub = {
     dashboard: 'Business overview at a glance',
