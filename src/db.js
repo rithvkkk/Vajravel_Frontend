@@ -2,9 +2,9 @@ import Dexie from 'dexie';
 
 export const db = new Dexie('VajravelPOS');
 
-db.version(3).stores({
+db.version(4).stores({
   products: 'id, sku, name, categoryName, updatedAt',
-  sales: '++localId, id, invoiceNumber, synced, createdAt', // synced: 0 or 1
+  sales: '++localId, id, invoiceNumber, &clientSaleId, synced, createdAt', // & means unique
   categories: 'id, name, updatedAt',
   users: 'username', 
   settings: 'key'

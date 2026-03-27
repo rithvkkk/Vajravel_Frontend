@@ -95,8 +95,16 @@ export const api = {
   getSales: async () => {
     try {
       const remote = await request('/sales');
-      // Update local cache with remote sales
-      await db.sales.bulkPut(remote.map(s => ({ ...s, synced: 1 })));
+      // Smart Merge: update existing by clientSaleId or remote id, or add new
+      for (const s of remote) {
+        const existing = await db.sales.where('clientSaleId').equals(s.clientSaleId).first() 
+                      || await db.sales.where('id').equals(s.id).first();
+        if (existing) {
+          await db.sales.update(existing.localId, { ...s, synced: 1 });
+        } else {
+          await db.sales.add({ ...s, synced: 1 });
+        }
+      }
       return await db.sales.toArray();
     } catch (err) {
       console.warn('Using offline sales history');
@@ -104,12 +112,18 @@ export const api = {
     }
   },
   createSale: async (data) => {
-    // 1. Save locally first
-    const localId = await db.sales.add({ ...data, synced: 0, date: new Date().toISOString() });
+    // 1. Save locally first with a unique client ID
+    const clientSaleId = crypto.randomUUID();
+    const localId = await db.sales.add({ 
+      ...data, 
+      clientSaleId,
+      synced: 0, 
+      date: new Date().toISOString() 
+    });
     
     try {
       // 2. Try to push to remote
-      const sale = await request('/sales', { method: 'POST', body: JSON.stringify(data) });
+      const sale = await request('/sales', { method: 'POST', body: JSON.stringify({ ...data, clientSaleId }) });
       // 3. Mark as synced
       await db.sales.update(localId, { synced: 1, id: sale.id });
       return sale;
@@ -138,6 +152,21 @@ export const api = {
       } catch (err) { /* ignore single fails */ }
     }
     return count;
+  },
+  deduplicateSales: async () => {
+    // Client-side cleanup for safety
+    const all = await db.sales.toArray();
+    const seen = new Set();
+    const toDelete = [];
+    for (const s of all) {
+      const key = s.clientSaleId || s.id || `${s.invoiceNumber}-${s.total}`;
+      if (seen.has(key)) toDelete.push(s.localId);
+      else seen.add(key);
+    }
+    if (toDelete.length > 0) {
+      await db.sales.bulkDelete(toDelete);
+    }
+    return toDelete.length;
   }
 };
 

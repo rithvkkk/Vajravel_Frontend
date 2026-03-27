@@ -20,6 +20,7 @@ export default function Dashboard() {
   if (!stats) return <div style={{ textAlign: 'center', padding: 40, color: 'var(--text3)' }}>Loading dashboard...</div>;
 
   const fmt = (n) => {
+    if (n === undefined || n === null || isNaN(n)) return '₹0';
     if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
     if (n >= 1000) return `₹${(n / 1000).toFixed(1)}K`;
     return `₹${n.toFixed(0)}`;

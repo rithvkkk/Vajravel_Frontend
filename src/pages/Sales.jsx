@@ -14,7 +14,18 @@ export default function Sales() {
 
   const safeSales = Array.isArray(sales) ? sales : [];
 
-  const filtered = safeSales.filter(s => {
+  // UI-level deduplication (Final Guardrail)
+  const uniqueSales = [];
+  const seen = new Set();
+  for (const s of safeSales) {
+    const key = s.clientSaleId || s.id || `${s.invoiceNumber}-${s.total}-${s.createdAt}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueSales.push(s);
+    }
+  }
+
+  const filtered = uniqueSales.filter(s => {
     return s.invoiceNumber?.toLowerCase().includes(search.toLowerCase()) ||
            s.customerName?.toLowerCase().includes(search.toLowerCase());
   });

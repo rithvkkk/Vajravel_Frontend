@@ -90,10 +90,26 @@ export default function Settings() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontWeight: 600, fontSize: 15 }}>
               <FiDatabase color="var(--blue)" /> Data Management & Backup
             </div>
-            <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 16 }}>Download a full snapshot of your POS data for manual backup or transfer.</p>
-            <button className="btn btn-ghost" style={{ border: '1px solid var(--border)' }} onClick={handleExport}>
-              <FiDownload style={{ marginRight: 8 }} /> Export Full JSON Backup
-            </button>
+            <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 16 }}>Advanced tools to maintain and backup your local and cloud database.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <button className="btn btn-ghost" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }} onClick={handleExport}>
+                <FiDownload style={{ marginRight: 8 }} /> Export Full JSON
+              </button>
+              <button className="btn btn-ghost" style={{ border: '1px solid var(--blue)', color: 'var(--blue)', background: 'var(--surface)' }} onClick={async () => {
+                const count = await api.deduplicateSales();
+                alert(`Data repair complete! Removed ${count} duplicate records from local cache. Refreshing...`);
+                window.location.reload();
+              }}>
+                <FiSearch style={{ marginRight: 8 }} /> Repair History
+              </button>
+              <button className="btn btn-ghost" style={{ border: '1px solid var(--red)', color: 'var(--red)', background: 'var(--surface)' }} onClick={() => {
+                if(confirm('DANGER: This will wipe ALL sales history from the cloud permanently! This cannot be undone.')) {
+                  api.clearSales().then(() => alert('Cloud sales history cleared successfully.'));
+                }
+              }}>
+                <FiTrash2 style={{ marginRight: 8 }} /> Wipe Cloud Data
+              </button>
+            </div>
           </div>
 
           <div style={{ padding: 16, background: 'rgba(34, 153, 221, 0.05)', borderRadius: 12, border: '1px solid var(--blue-dark)' }}>
