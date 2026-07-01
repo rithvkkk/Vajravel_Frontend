@@ -8,6 +8,7 @@ export default function Settings() {
   const [storeName, setStoreName] = useState('VAJRAVEL CRACKERS');
   const [phone, setPhone] = useState('9876543210');
   const [gstin, setGstin] = useState('33ABCDE1234F1ZK');
+  const [address, setAddress] = useState('Sivakasi, Tamil Nadu');
   const [gstPct, setGstPct] = useState(18);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ export default function Settings() {
       if (map.storeName) setStoreName(map.storeName);
       if (map.phone) setPhone(map.phone);
       if (map.gstin) setGstin(map.gstin);
+      if (map.address) setAddress(map.address);
       if (map.gstPct) setGstPct(Number(map.gstPct));
       setLoading(false);
     }
@@ -28,6 +30,7 @@ export default function Settings() {
       { key: 'storeName', val: storeName },
       { key: 'phone', val: phone },
       { key: 'gstin', val: gstin },
+      { key: 'address', val: address },
       { key: 'gstPct', val: gstPct.toString() }
     ]);
     alert('Settings saved successfully!');
@@ -71,6 +74,10 @@ export default function Settings() {
             <div className="input-group" style={{ maxWidth: 400 }}>
               <label>Contact Phone</label>
               <input className="input-field" value={phone} onChange={e => setPhone(e.target.value)} />
+            </div>
+            <div className="input-group" style={{ maxWidth: 400 }}>
+              <label>Store Address</label>
+              <input className="input-field" value={address} onChange={e => setAddress(e.target.value)} />
             </div>
             <div className="input-group" style={{ maxWidth: 400 }}>
               <label>GSTIN Number</label>
