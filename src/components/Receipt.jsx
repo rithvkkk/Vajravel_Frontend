@@ -9,7 +9,8 @@ export default function Receipt({ sale, onClose }) {
   const [settings, setSettings] = useState({
     storeName: 'VAJRAVEL CRACKERS',
     phone: '9876543210',
-    gstin: '33ABCDE1234F1ZK'
+    gstin: '33ABCDE1234F1ZK',
+    address: 'Sivakasi, Tamil Nadu'
   });
 
   useEffect(() => {
@@ -160,7 +161,7 @@ export default function Receipt({ sale, onClose }) {
                 <img src={logo} alt={settings.storeName} className="receipt-logo" />
                 <div className="receipt-company">{settings.storeName.toUpperCase()}</div>
                 <div className="receipt-tagline">Est. 2019 · Premium Fireworks</div>
-                <div className="receipt-contact">Sivakasi, Tamil Nadu</div>
+                <div className="receipt-contact">{settings.address}</div>
                 <div className="receipt-contact">📞 {settings.phone}</div>
               </div>
 
@@ -210,10 +211,10 @@ export default function Receipt({ sale, onClose }) {
                   </span>
                   <span style={{ flex: 0.5, textAlign: 'center' }}>{item.quantity}</span>
                   <span style={{ flex: 1, textAlign: 'right' }}>
-                    {item.isGift ? '₹0' : `₹${Number(item.price).toLocaleString('en-IN')}`}
+                    {item.isGift ? <del style={{opacity: 0.6}}>₹{Number(item.price).toLocaleString('en-IN')}</del> : `₹${Number(item.price).toLocaleString('en-IN')}`}
                   </span>
                   <span style={{ flex: 1, textAlign: 'right' }}>
-                    ₹{Number(item.isGift ? 0 : (item.total || item.price * item.quantity)).toLocaleString('en-IN')}
+                    {item.isGift ? <del style={{opacity: 0.6}}>₹{Number(item.total || item.price * item.quantity).toLocaleString('en-IN')}</del> : `₹${Number(item.total || item.price * item.quantity).toLocaleString('en-IN')}`}
                   </span>
                 </div>
               ))}
