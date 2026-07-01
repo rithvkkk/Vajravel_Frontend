@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { FiSearch, FiEye, FiX, FiCalendar, FiTrash2 } from 'react-icons/fi';
+import Receipt from '../components/Receipt';
 
 export default function Sales() {
   const [sales, setSales] = useState([]);
@@ -146,61 +147,7 @@ export default function Sales() {
 
       {/* VIEW SALE MODAL */}
       {viewSale && (
-        <div className="modal-overlay" onClick={() => setViewSale(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 560 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <div>
-                <div className="modal-title" style={{ margin: 0 }}>Invoice {viewSale.invoiceNumber}</div>
-                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{formatDate(viewSale.createdAt)}</div>
-              </div>
-              <button className="icon-btn" onClick={() => setViewSale(null)}><FiX /></button>
-            </div>
-
-            <div style={{ background: 'var(--surface2)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-                <span style={{ color: 'var(--text2)' }}>Customer</span><span style={{ fontWeight: 500 }}>{viewSale.customerName}</span>
-              </div>
-              {viewSale.customerPhone && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-                  <span style={{ color: 'var(--text2)' }}>Phone</span><span>{viewSale.customerPhone}</span>
-                </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span style={{ color: 'var(--text2)' }}>Payment</span>
-                <span className="tag" style={{
-                  background: viewSale.paymentMethod === 'cash' ? 'var(--teal-light)' : 'var(--purple-light)',
-                  color: viewSale.paymentMethod === 'cash' ? 'var(--teal)' : 'var(--purple)',
-                }}>{(viewSale.paymentMethod || 'cash').toUpperCase()}</span>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10 }}>Items</div>
-              <table style={{ fontSize: 13 }}>
-                <thead><tr><th>Product</th><th style={{ textAlign: 'right' }}>Qty</th><th style={{ textAlign: 'right' }}>Price</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
-                <tbody>
-                  {(viewSale.items || []).map((item, i) => (
-                    <tr key={i}>
-                      <td>{item.productName || `Product #${item.productId}`}</td>
-                      <td style={{ textAlign: 'right' }}>{item.quantity}</td>
-                      <td style={{ textAlign: 'right' }}>₹{Number(item.price).toLocaleString('en-IN')}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>₹{Number(item.total).toLocaleString('en-IN')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-              <div className="cart-summary">
-                <div className="cart-row"><span>Subtotal</span><span>₹{Number(viewSale.subtotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
-                <div className="cart-row"><span>GST (18%)</span><span>₹{Number(viewSale.tax).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
-                {viewSale.discount > 0 && <div className="cart-row"><span>Discount</span><span>-₹{Number(viewSale.discount).toLocaleString('en-IN')}</span></div>}
-                <div className="cart-row total"><span>Total</span><span>₹{Number(viewSale.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Receipt sale={viewSale} onClose={() => setViewSale(null)} />
       )}
     </div>
   );
