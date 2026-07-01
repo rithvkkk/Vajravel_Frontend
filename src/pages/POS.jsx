@@ -24,6 +24,8 @@ export default function POS() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [isSplit, setIsSplit] = useState(false);
+  const [splitPayment, setSplitPayment] = useState({ cash: '', upi: '', card: '' });
   const [showCheckout, setShowCheckout] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [completeSale, setCompleteSale] = useState(null);
@@ -78,6 +80,23 @@ export default function POS() {
 
   const handlePrint = async () => {
     if (cart.length === 0 || isProcessing) return;
+    
+    const totalPaid = isSplit ? (Number(splitPayment.cash||0) + Number(splitPayment.upi||0) + Number(splitPayment.card||0)) : total;
+    if (isSplit && totalPaid < total) {
+      alert(`Total paid (₹${totalPaid.toLocaleString('en-IN')}) is less than net payable (₹${total.toLocaleString('en-IN')})!`);
+      return;
+    }
+
+    let finalPaymentMethod = paymentMethod;
+    if (isSplit) {
+      const parts = [];
+      if (Number(splitPayment.cash) > 0) parts.push(`Cash: ₹${splitPayment.cash}`);
+      if (Number(splitPayment.upi) > 0) parts.push(`UPI: ₹${splitPayment.upi}`);
+      if (Number(splitPayment.card) > 0) parts.push(`Card: ₹${splitPayment.card}`);
+      if (parts.length === 0) return alert('Enter payment amounts!');
+      finalPaymentMethod = parts.join(', ');
+    }
+
     setIsProcessing(true);
     try {
       const payload = {
@@ -91,9 +110,9 @@ export default function POS() {
         })),
         subtotal,
         discount,
-        tax: inclusiveTax, // Use the inclusive tax calculated above
+        tax: inclusiveTax,
         total,
-        paymentMethod,
+        paymentMethod: finalPaymentMethod,
       };
       console.log('Sending sale payload:', payload);
       const sale = await api.createSale(payload);
@@ -210,7 +229,11 @@ export default function POS() {
                   <button className="qty-btn" onClick={() => updateQty(item.productId, 1)}><FiPlus /></button>
                 </div>
                 <span style={{ fontWeight: 600, minWidth: 70, textAlign: 'right', fontFamily: "'Syne',sans-serif" }}>
-                  ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+                  {item.isGift ? (
+                    <span style={{ textDecoration: 'line-through', opacity: 0.5 }}>₹{(item.price * item.quantity).toLocaleString('en-IN')}</span>
+                  ) : (
+                    `₹${(item.price * item.quantity).toLocaleString('en-IN')}`
+                  )}
                 </span>
                 <button className="qty-btn" style={{ color: 'var(--red)', borderColor: 'var(--red-light)' }} onClick={() => removeFromCart(item.productId)}>
                   <FiX />
@@ -259,14 +282,36 @@ export default function POS() {
               <input className="input-field" placeholder="Optional" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
             </div>
             <div className="input-group">
-              <label>Payment Method</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {['cash', 'upi', 'card'].map(m => (
-                  <button key={m} className={`ftab ${paymentMethod === m ? 'active' : ''}`} onClick={() => setPaymentMethod(m)}>
-                    {m === 'cash' ? '💵' : m === 'upi' ? '📱' : '💳'} {m.charAt(0).toUpperCase() + m.slice(1)}
-                  </button>
-                ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <label>Payment Method</label>
+                <label style={{ cursor: 'pointer', display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, color: 'var(--blue)' }}>
+                  <input type="checkbox" checked={isSplit} onChange={e => setIsSplit(e.target.checked)} /> Split Tender
+                </label>
               </div>
+              {!isSplit ? (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {['cash', 'upi', 'card'].map(m => (
+                    <button key={m} className={`ftab ${paymentMethod === m ? 'active' : ''}`} onClick={() => setPaymentMethod(m)}>
+                      {m === 'cash' ? '💵' : m === 'upi' ? '📱' : '💳'} {m.charAt(0).toUpperCase() + m.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                     <span style={{ width: 80, fontSize: 14 }}>Cash 💵</span>
+                     <input className="input-field" type="number" placeholder="₹ Amount" value={splitPayment.cash} onChange={e => setSplitPayment({...splitPayment, cash: e.target.value})} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                     <span style={{ width: 80, fontSize: 14 }}>UPI 📱</span>
+                     <input className="input-field" type="number" placeholder="₹ Amount" value={splitPayment.upi} onChange={e => setSplitPayment({...splitPayment, upi: e.target.value})} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                     <span style={{ width: 80, fontSize: 14 }}>Card 💳</span>
+                     <input className="input-field" type="number" placeholder="₹ Amount" value={splitPayment.card} onChange={e => setSplitPayment({...splitPayment, card: e.target.value})} />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={{ background: 'var(--surface2)', borderRadius: 12, padding: 16, marginBottom: 20 }}>

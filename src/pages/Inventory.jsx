@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
-import { FiSearch, FiPlus, FiEdit2, FiTrash2, FiX, FiSave, FiCamera } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiEdit2, FiTrash2, FiX, FiSave, FiCamera, FiUpload } from 'react-icons/fi';
 import useBarcodeScanner from '../hooks/useBarcodeScanner';
 import CameraScanner from '../components/CameraScanner';
 import BarcodeGenerator from '../components/BarcodeGenerator';
@@ -60,6 +60,56 @@ export default function Inventory() {
     }
   };
 
+  const handleBulkUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      const rows = text.split('\n').map(row => row.trim()).filter(row => row);
+      
+      if (rows.length < 2) return alert('Invalid CSV file or empty.');
+      
+      const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
+      
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (let i = 1; i < rows.length; i++) {
+        const cols = rows[i].split(',').map(c => c.trim());
+        const data = {};
+        
+        headers.forEach((h, index) => {
+          if (cols[index]) data[h] = cols[index];
+        });
+
+        if (data.name && data.sku && data.price) {
+          const product = {
+            name: data.name,
+            sku: data.sku,
+            price: Number(data.price),
+            costPrice: Number(data.costprice || 0),
+            stock: Number(data.stock || 0),
+            unit: data.unit || 'pcs',
+            categoryName: data.categoryname || categories[0]?.name || 'Uncategorized'
+          };
+          try {
+            await api.addProduct(product);
+            successCount++;
+          } catch(err) {
+            errorCount++;
+          }
+        }
+      }
+      
+      alert(`Bulk Upload Complete.\nSuccessfully added: ${successCount}\nFailed/Skipped: ${errorCount}`);
+      load();
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset input
+  };
+
   const handleScan = (sku) => {
     const existing = products.find(p => p.sku === sku);
     if (existing) {
@@ -97,7 +147,15 @@ export default function Inventory() {
       <div className="card animate-in" style={{ animationDelay: '.2s' }}>
         <div className="card-header">
           <div className="card-title">Product Catalog</div>
-          <button className="btn btn-primary" onClick={openAdd}><FiPlus /> Add Product</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {user?.role === 'admin' && (
+              <label className="btn btn-ghost" style={{ cursor: 'pointer' }}>
+                <FiUpload /> Bulk CSV
+                <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleBulkUpload} />
+              </label>
+            )}
+            <button className="btn btn-primary" onClick={openAdd}><FiPlus /> Add Product</button>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
@@ -154,8 +212,12 @@ export default function Inventory() {
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="btn btn-ghost btn-sm" title="Generate Barcode" onClick={() => setBarcodeProduct(p)}><FiMaximize /></button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}><FiEdit2 /></button>
-                        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => handleDelete(p.id)}><FiTrash2 /></button>
+                        {user?.role === 'admin' && (
+                          <>
+                            <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}><FiEdit2 /></button>
+                            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => handleDelete(p.id)}><FiTrash2 /></button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -196,10 +258,12 @@ export default function Inventory() {
                 <label>Selling Price (₹)*</label>
                 <input className="input-field" type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />
               </div>
-              <div className="input-group">
-                <label>Cost Price (₹)</label>
-                <input className="input-field" type="number" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} />
-              </div>
+              {user?.role === 'admin' && (
+                <div className="input-group">
+                  <label>Cost Price (₹)</label>
+                  <input className="input-field" type="number" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} />
+                </div>
+              )}
             </div>
             <div className="grid-2">
               <div className="input-group">

@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
-import { FiPrinter, FiDownload, FiX } from 'react-icons/fi';
+import { FiPrinter, FiDownload, FiX, FiMessageCircle } from 'react-icons/fi';
 import html2pdf from 'html2pdf.js';
-import { db } from '../db';
+import * as db from '../sqliteService';
 import logo from '../assets/logo.jpg';
 
 export default function Receipt({ sale, onClose }) {
@@ -30,10 +30,9 @@ export default function Receipt({ sale, onClose }) {
       ' ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const printContent = receiptRef.current.innerHTML;
-    const printWindow = window.open('', '_blank', 'width=302,height=600');
-    printWindow.document.write(`
+    const htmlToPrint = `
       <!DOCTYPE html>
       <html>
       <head>
@@ -49,8 +48,15 @@ export default function Receipt({ sale, onClose }) {
         </script>
       </body>
       </html>
-    `);
-    printWindow.document.close();
+    `;
+
+    if (window.electron && window.electron.printSilent) {
+      await window.electron.printSilent(htmlToPrint);
+    } else {
+      const printWindow = window.open('', '_blank', 'width=302,height=600');
+      printWindow.document.write(htmlToPrint);
+      printWindow.document.close();
+    }
   };
 
   const handleDownloadPDF = () => {
@@ -78,6 +84,52 @@ export default function Receipt({ sale, onClose }) {
     });
   };
 
+  const handleWhatsApp = () => {
+    const element = receiptRef.current;
+    const originalStyles = element.style.cssText;
+    element.style.padding = '20px';
+    element.style.background = '#fff';
+    element.style.color = '#000';
+    element.style.width = '80mm';
+    element.style.fontFamily = "'Courier New', Courier, monospace";
+
+    const opt = {
+      margin: 5,
+      filename: `Receipt_${sale.invoiceNumber}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: [80, 200], orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).outputPdf('blob').then(async (pdfBlob) => {
+      element.style.cssText = originalStyles;
+      const file = new File([pdfBlob], `Receipt_${sale.invoiceNumber}.pdf`, { type: 'application/pdf' });
+      
+      const phone = sale.customerPhone.replace(/\D/g, '');
+      const waPhone = phone.length === 10 ? `91${phone}` : phone;
+      const text = `Hello ${sale.customerName || 'Customer'},\nHere is your bill (${sale.invoiceNumber}) for ₹${Number(sale.total).toLocaleString('en-IN')} from ${settings.storeName}. Thank you for shopping with us!`;
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: `Receipt ${sale.invoiceNumber}`,
+            text: text,
+          });
+        } catch (err) {
+          console.error('Error sharing', err);
+        }
+      } else {
+        html2pdf().set(opt).from(element).save();
+        alert('PDF downloaded! Please attach it in the WhatsApp chat that will open now.');
+        window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`, '_blank');
+      }
+    }).catch(err => {
+      console.error(err);
+      element.style.cssText = originalStyles;
+    });
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 420, padding: 0, overflow: 'hidden' }}>
@@ -88,6 +140,11 @@ export default function Receipt({ sale, onClose }) {
         }}>
           <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15 }}>Receipt Preview</div>
           <div style={{ display: 'flex', gap: 8 }}>
+            {sale.customerPhone && (
+              <button className="btn btn-ghost btn-sm" style={{ color: '#25D366', borderColor: '#25D36622' }} onClick={handleWhatsApp}>
+                <FiMessageCircle /> WhatsApp
+              </button>
+            )}
             <button className="btn btn-primary btn-sm" onClick={handlePrint}><FiPrinter /> Print</button>
             <button className="btn btn-ghost btn-sm" onClick={handleDownloadPDF}><FiDownload /> Save PDF</button>
             <button className="icon-btn" style={{ width: 30, height: 30 }} onClick={onClose}><FiX /></button>

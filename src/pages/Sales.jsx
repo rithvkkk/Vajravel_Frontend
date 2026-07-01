@@ -6,6 +6,7 @@ export default function Sales() {
   const [sales, setSales] = useState([]);
   const [search, setSearch] = useState('');
   const [viewSale, setViewSale] = useState(null);
+  const [user] = useState(() => JSON.parse(localStorage.getItem('pos_user')) || {});
 
   const load = () => {
     api.getSales().then(setSales).catch(() => {});
@@ -39,6 +40,29 @@ export default function Sales() {
     return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleExportGSTR1 = () => {
+    const headers = ['Invoice Number', 'Date', 'Customer Name', 'Invoice Value', 'Taxable Value', 'CGST (9%)', 'SGST (9%)'];
+    const rows = [headers.join(',')];
+
+    safeSales.forEach(s => {
+      const date = new Date(s.createdAt).toLocaleDateString('en-IN');
+      const invoiceVal = Number(s.total).toFixed(2);
+      const taxableVal = (s.total / 1.18).toFixed(2);
+      const cgst = ((s.total - (s.total / 1.18)) / 2).toFixed(2);
+      const sgst = cgst;
+      rows.push(`${s.invoiceNumber},${date},"${s.customerName || 'Cash'}",${invoiceVal},${taxableVal},${cgst},${sgst}`);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + rows.join('\\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `GSTR1_Export_${new Date().toLocaleDateString('en-IN').replace(/\\//g, '-')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div>
       {/* Quick Stats */}
@@ -67,6 +91,9 @@ export default function Sales() {
             <div className="card-title">All Transactions</div>
             <span className="tag tag-green">{safeSales.length} records</span>
           </div>
+          {user.role === 'admin' && (
+            <button className="btn btn-primary" onClick={handleExportGSTR1}>Export GSTR-1 (CSV)</button>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>

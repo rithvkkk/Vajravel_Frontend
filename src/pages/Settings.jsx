@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
-import { db } from '../db';
-import { FiSave, FiInfo, FiDatabase, FiPrinter, FiDownload, FiUpload } from 'react-icons/fi';
+import * as db from '../sqliteService';
+import { FiSave, FiInfo, FiDatabase, FiPrinter, FiDownload, FiUpload, FiTrash2, FiSearch } from 'react-icons/fi';
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
@@ -12,7 +12,7 @@ export default function Settings() {
 
   useEffect(() => {
     async function load() {
-      const s = await db.settings.toArray();
+      const s = await db.getSettings();
       const map = Object.fromEntries(s.map(i => [i.key, i.val]));
       if (map.storeName) setStoreName(map.storeName);
       if (map.phone) setPhone(map.phone);
@@ -24,19 +24,21 @@ export default function Settings() {
   }, []);
 
   const handleSave = async () => {
-    await db.settings.put({ key: 'storeName', val: storeName });
-    await db.settings.put({ key: 'phone', val: phone });
-    await db.settings.put({ key: 'gstin', val: gstin });
-    await db.settings.put({ key: 'gstPct', val: gstPct });
+    await db.saveSettings([
+      { key: 'storeName', val: storeName },
+      { key: 'phone', val: phone },
+      { key: 'gstin', val: gstin },
+      { key: 'gstPct', val: gstPct.toString() }
+    ]);
     alert('Settings saved successfully!');
   };
 
   const handleExport = async () => {
     const data = {
-      products: await db.products.toArray(),
-      sales: await db.sales.toArray(),
-      categories: await db.categories.toArray(),
-      settings: await db.settings.toArray(),
+      products: await db.getProducts(),
+      sales: await db.getAllSales(),
+      categories: await db.getCategories(),
+      settings: await db.getSettings(),
       exportedAt: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -118,7 +120,7 @@ export default function Settings() {
             </div>
             <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>
               <div>Version: <strong>2.6.0 (Enterprise)</strong></div>
-              <div>Database: <strong>IndexedDB (Offline) + MongoDB (Sync)</strong></div>
+              <div>Database: <strong>SQLite (Offline) + MongoDB (Sync)</strong></div>
               <div>Environment: <strong>Production Mode</strong></div>
             </div>
           </div>
@@ -128,7 +130,7 @@ export default function Settings() {
         <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-ghost btn-sm" onClick={async () => {
-              if (window.confirm('Delete local data?')) { await db.delete(); window.location.reload(); }
+              if (window.confirm('Delete local data?')) { await db.clearDB(); window.location.reload(); }
             }}>Reset Data</button>
             <button className="btn btn-ghost btn-sm" onClick={async () => {
               try { await api.seed(); alert('Seeded!'); window.location.reload(); } catch(e) { alert(e.message); }

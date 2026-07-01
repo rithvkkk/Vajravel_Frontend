@@ -1,5 +1,5 @@
-const API = import.meta.env.VITE_API_URL || 'https://vajravel-backend.vercel.app//api';
-import { db } from './db';
+const API = import.meta.env.VITE_API_URL || 'https://vajravel-backend1.onrender.com/api';
+import * as db from './sqliteService';
 
 async function request(url, options = {}) {
   const token = localStorage.getItem('pos_token');
@@ -34,13 +34,11 @@ export const api = {
     try {
       const resp = await request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
       if (resp.user) {
-        // Save user profile locally for offline authentication
-        await db.users.put({ ...resp.user, cachedAt: new Date().toISOString() });
+        await db.saveUser({ ...resp.user, cachedAt: new Date().toISOString() });
       }
       return resp;
     } catch (err) {
-      // Offline fallback: check local IndexedDB
-      const localUser = await db.users.get(username);
+      const localUser = await db.getUser(username);
       if (localUser) {
         console.warn('Offline login successful for:', username);
         return { token: 'offline_token', user: localUser, isOffline: true };
@@ -59,11 +57,10 @@ export const api = {
   getCategories: async () => {
     try {
       const categories = await request('/categories');
-      await db.categories.clear();
-      await db.categories.bulkAdd(categories);
+      await db.saveCategories(categories);
       return categories;
     } catch (err) {
-      return await db.categories.toArray();
+      return await db.getCategories();
     }
   },
   addCategory: (name) => request('/categories', { method: 'POST', body: JSON.stringify({ name }) }),
@@ -72,17 +69,17 @@ export const api = {
   getProducts: async () => {
     try {
       const products = await request('/products');
-      await db.products.clear();
-      await db.products.bulkAdd(products);
+      // LWW Conflict Resolution for Products handled mostly by backend, but we ensure local DB matches remote
+      await db.saveProducts(products);
       return products;
     } catch (err) {
-      console.log('Using offline product cache');
-      return await db.products.toArray();
+      console.log('Using offline SQLite product cache');
+      return await db.getProducts();
     }
   },
   addProduct: (data) => request('/products', { method: 'POST', body: JSON.stringify({ ...data, updatedAt: new Date().toISOString() }) }),
   updateProduct: async (id, data) => {
-    // Basic conflict resolution: pull latest to check before push (simplified)
+    // Conflict resolution check
     const remote = await request(`/products/${id}`);
     if (remote.updatedAt && data.updatedAt && new Date(remote.updatedAt) > new Date(data.updatedAt)) {
       throw new Error('Conflict: Product was updated by another device. Refreshing.');
@@ -95,29 +92,21 @@ export const api = {
   getSales: async () => {
     try {
       const remote = await request('/sales');
-      // Smart Merge: update existing by clientSaleId or remote id, or add new
+      // Smart Merge into SQLite
       for (const s of remote) {
-        const existing = await db.sales.where('clientSaleId').equals(s.clientSaleId).first() 
-                      || await db.sales.where('id').equals(s.id).first();
-        if (existing) {
-          await db.sales.update(existing.localId, { ...s, synced: 1 });
-        } else {
-          await db.sales.add({ ...s, synced: 1 });
-        }
+        await db.saveOnlineSale(s);
       }
-      return await db.sales.toArray();
+      return await db.getAllSales();
     } catch (err) {
-      console.warn('Using offline sales history');
-      return await db.sales.toArray();
+      console.warn('Using offline sales history from SQLite');
+      return await db.getAllSales();
     }
   },
   createSale: async (data) => {
-    // 1. Generate client-side identifiers immediately
     const clientSaleId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    // Generate a local invoice number from existing count
-    const localCount = await db.sales.count();
+    const localCount = await db.getSalesCount();
     const invoiceNumber = `OFL-${String(localCount + 1).padStart(5, '0')}`;
 
     const localRecord = { 
@@ -126,60 +115,51 @@ export const api = {
       invoiceNumber,
       createdAt: now,
       date: now,
-      synced: 0,
     };
-    const localId = await db.sales.add(localRecord);
+    
+    // Save to SQLite
+    const localId = await db.saveOfflineSale(localRecord);
     
     try {
-      // 2. Try to push to remote (server assigns the final VC-XXXXX number)
       const sale = await request('/sales', { method: 'POST', body: JSON.stringify({ ...data, clientSaleId }) });
-      // 3. Update local record with server data (official invoice #, id, timestamp)
-      await db.sales.update(localId, { 
-        synced: 1, 
-        id: sale.id, 
-        invoiceNumber: sale.invoiceNumber, 
-        createdAt: sale.createdAt 
-      });
+      await db.saveOnlineSale(sale, localId);
       return sale;
     } catch (err) {
-      console.warn('Sale saved offline. Will sync later.');
+      console.warn('Sale saved offline in SQLite. Will sync later.');
       return { ...localRecord, localId, id: `offline_${localId}`, isOffline: true };
     }
   },
-  clearSales: () => request('/sales', { method: 'DELETE' }),
+  clearSales: async () => {
+    await request('/sales', { method: 'DELETE' });
+    await db.clearAllSales();
+  },
 
   // Seed
   seed: () => request('/seed', { method: 'POST' }),
 
   // Local Sync Helpers
-  getUnsyncedCount: () => db.sales.where('synced').equals(0).count(),
+  getUnsyncedCount: async () => {
+    const unsynced = await db.getUnsyncedSales();
+    return unsynced.length;
+  },
   syncOfflineSales: async () => {
-    const unsynced = await db.sales.where('synced').equals(0).toArray();
+    const unsynced = await db.getUnsyncedSales();
     let count = 0;
     for (const sale of unsynced) {
       try {
         const { localId, synced, ...payload } = sale;
         const remote = await request('/sales', { method: 'POST', body: JSON.stringify(payload) });
-        await db.sales.update(localId, { synced: 1, id: remote.id });
+        await db.saveOnlineSale(remote, localId);
         count++;
-      } catch (err) { /* ignore single fails */ }
+      } catch (err) { 
+        // Ignore single fails, will retry later
+      }
     }
     return count;
   },
   deduplicateSales: async () => {
-    // Client-side cleanup for safety
-    const all = await db.sales.toArray();
-    const seen = new Set();
-    const toDelete = [];
-    for (const s of all) {
-      const key = s.clientSaleId || s.id || `${s.invoiceNumber}-${s.total}`;
-      if (seen.has(key)) toDelete.push(s.localId);
-      else seen.add(key);
-    }
-    if (toDelete.length > 0) {
-      await db.sales.bulkDelete(toDelete);
-    }
-    return toDelete.length;
+    await db.deduplicateSales();
+    return 0; // handled in SQL
   }
 };
 

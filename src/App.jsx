@@ -11,7 +11,7 @@ import SyncManager from './components/SyncManager';
 import logo from './assets/logo.jpg';
 import './index.css';
 
-import { FiHome, FiShoppingCart, FiBox, FiList, FiUsers, FiSettings, FiBell, FiSearch, FiLogOut, FiMenu } from 'react-icons/fi';
+import { FiHome, FiShoppingCart, FiBox, FiList, FiUsers, FiSettings, FiBell, FiSearch, FiLogOut, FiMenu, FiSun, FiMoon } from 'react-icons/fi';
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: <FiHome />, roles: ['admin', 'staff'] },
@@ -29,6 +29,12 @@ export default function App() {
   const [page, setPage] = useState('dashboard');
   const [seeded, setSeeded] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('pos_theme') || 'light');
+
+  useEffect(() => {
+    document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('pos_theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     // Auto-seed on first load
@@ -130,6 +136,9 @@ export default function App() {
           </div>
           <div className="topbar-right">
             <button className="icon-btn" onClick={() => setPage('inventory')} title="Search Products"><FiSearch /></button>
+            <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle Theme">
+              {theme === 'dark' ? <FiSun /> : <FiMoon />}
+            </button>
             <div className="icon-btn" style={{ position: 'relative' }} title="Notifications">
               <FiBell />
               <div style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, borderRadius: '50%', background: 'var(--red)', border: '2px solid var(--surface)' }}></div>
