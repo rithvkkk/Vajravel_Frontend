@@ -15,7 +15,7 @@ export default function Receipt({ sale, onClose }) {
 
   useEffect(() => {
     async function load() {
-      const s = await db.settings.toArray();
+      const s = await db.getSettings();
       const map = Object.fromEntries(s.map(i => [i.key, i.val]));
       setSettings(prev => ({ ...prev, ...map }));
     }
