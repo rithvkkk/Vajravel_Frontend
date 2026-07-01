@@ -1,28 +1,13 @@
-import initSqlJs from 'sql.js';
-// Vite can import the wasm file url directly
-import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
-import localforage from 'localforage';
+import { SQLocal } from 'sqlocal';
 
-let db = null;
-const DB_KEY = 'VajravelPOS_SQLite';
+// sqlocal creates the Web Worker and connects to OPFS automatically
+const { sql } = new SQLocal('VajravelPOS.sqlite3');
+let isInitialized = false;
 
 export async function initDB() {
-  if (db) return db;
+  if (isInitialized) return;
 
-  const SQL = await initSqlJs({
-    locateFile: () => sqlWasmUrl
-  });
-
-  const savedData = await localforage.getItem(DB_KEY);
-  
-  if (savedData) {
-    db = new SQL.Database(savedData);
-  } else {
-    db = new SQL.Database();
-  }
-  
-  // Create schemas every time safely to ensure they exist (e.g. for updates)
-  db.run(`
+  await sql`
     CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY,
       sku TEXT,
@@ -47,7 +32,7 @@ export async function initDB() {
       tax REAL,
       total REAL,
       paymentMethod TEXT,
-      items TEXT, -- JSON stringified array of items
+      items TEXT,
       synced INTEGER DEFAULT 0,
       createdAt TEXT,
       date TEXT
@@ -69,112 +54,69 @@ export async function initDB() {
       key TEXT PRIMARY KEY,
       val TEXT
     );
-  `);
-  
-  // Only saveDB on init if it's a fresh DB
-  if (!savedData) saveDB();
-
-  return db;
-}
-
-export function saveDB() {
-  if (!db) return;
-  const data = db.export();
-  // Using localforage to persist the SQLite binary string/array
-  localforage.setItem(DB_KEY, data).catch(console.error);
+  `;
+  isInitialized = true;
 }
 
 export async function clearDB() {
-  await localforage.removeItem(DB_KEY);
-  db = null;
+  await initDB();
+  await sql`DELETE FROM products`;
+  await sql`DELETE FROM sales`;
+  await sql`DELETE FROM categories`;
+  await sql`DELETE FROM users`;
+  await sql`DELETE FROM settings`;
 }
 
 // ── CRUD Helpers ──
 
 export async function saveProducts(products) {
   await initDB();
-  db.run('BEGIN TRANSACTION;');
-  const stmt = db.prepare('INSERT OR REPLACE INTO products (id, sku, name, categoryName, price, costPrice, stock, unit, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  await sql`BEGIN TRANSACTION;`;
   for (const p of products) {
-    stmt.run([p.id, p.sku, p.name, p.categoryName, p.price, p.costPrice, p.stock, p.unit, p.updatedAt || new Date().toISOString()]);
+    await sql`INSERT OR REPLACE INTO products (id, sku, name, categoryName, price, costPrice, stock, unit, updatedAt) VALUES (${p.id}, ${p.sku}, ${p.name}, ${p.categoryName}, ${p.price}, ${p.costPrice}, ${p.stock}, ${p.unit}, ${p.updatedAt || new Date().toISOString()})`;
   }
-  stmt.free();
-  db.run('COMMIT;');
-  saveDB();
+  await sql`COMMIT;`;
 }
 
 export async function getProducts() {
   await initDB();
-  const res = db.exec('SELECT * FROM products ORDER BY name');
-  if (res.length === 0) return [];
-  const cols = res[0].columns;
-  return res[0].values.map(row => {
-    const obj = {};
-    cols.forEach((col, i) => { obj[col] = row[i]; });
-    return obj;
-  });
+  return await sql`SELECT * FROM products ORDER BY name`;
 }
 
 export async function saveCategories(categories) {
   await initDB();
-  db.run('BEGIN TRANSACTION;');
-  const stmt = db.prepare('INSERT OR REPLACE INTO categories (id, name, updatedAt) VALUES (?, ?, ?)');
+  await sql`BEGIN TRANSACTION;`;
   for (const c of categories) {
-    stmt.run([c.id, c.name, c.updatedAt || new Date().toISOString()]);
+    await sql`INSERT OR REPLACE INTO categories (id, name, updatedAt) VALUES (${c.id}, ${c.name}, ${c.updatedAt || new Date().toISOString()})`;
   }
-  stmt.free();
-  db.run('COMMIT;');
-  saveDB();
+  await sql`COMMIT;`;
 }
 
 export async function getCategories() {
   await initDB();
-  const res = db.exec('SELECT * FROM categories ORDER BY name');
-  if (res.length === 0) return [];
-  const cols = res[0].columns;
-  return res[0].values.map(row => {
-    const obj = {};
-    cols.forEach((col, i) => { obj[col] = row[i]; });
-    return obj;
-  });
+  return await sql`SELECT * FROM categories ORDER BY name`;
 }
 
 export async function saveUser(user) {
   await initDB();
-  const stmt = db.prepare('INSERT OR REPLACE INTO users (username, role, cachedAt) VALUES (?, ?, ?)');
-  stmt.run([user.username, user.role, user.cachedAt || new Date().toISOString()]);
-  stmt.free();
-  saveDB();
+  await sql`INSERT OR REPLACE INTO users (username, role, cachedAt) VALUES (${user.username}, ${user.role}, ${user.cachedAt || new Date().toISOString()})`;
 }
 
 export async function getUser(username) {
   await initDB();
-  const res = db.exec(`SELECT * FROM users WHERE username = '${username}'`);
-  if (res.length === 0) return null;
-  const cols = res[0].columns;
-  const obj = {};
-  cols.forEach((col, i) => { obj[col] = res[0].values[0][i]; });
-  return obj;
+  const res = await sql`SELECT * FROM users WHERE username = ${username}`;
+  return res.length > 0 ? res[0] : null;
 }
 
 export async function saveOfflineSale(sale) {
   await initDB();
   const itemsStr = JSON.stringify(sale.items || []);
-  const stmt = db.prepare(`
+  const res = await sql`
     INSERT INTO sales (id, invoiceNumber, clientSaleId, customerName, customerPhone, subtotal, discount, tax, total, paymentMethod, items, synced, createdAt, date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run([
-    sale.id || null, sale.invoiceNumber, sale.clientSaleId, sale.customerName, sale.customerPhone,
-    sale.subtotal, sale.discount, sale.tax, sale.total, sale.paymentMethod, itemsStr,
-    0, sale.createdAt, sale.date || new Date().toISOString()
-  ]);
-  stmt.free();
-  saveDB();
-  
-  // Return the auto-incremented localId
-  const res = db.exec('SELECT last_insert_rowid()');
-  return res[0].values[0][0];
+    VALUES (${sale.id || null}, ${sale.invoiceNumber}, ${sale.clientSaleId}, ${sale.customerName}, ${sale.customerPhone}, ${sale.subtotal}, ${sale.discount}, ${sale.tax}, ${sale.total}, ${sale.paymentMethod}, ${itemsStr}, 0, ${sale.createdAt}, ${sale.date || new Date().toISOString()})
+    RETURNING localId;
+  `;
+  return res[0].localId;
 }
 
 export async function saveOnlineSale(sale, localId = null) {
@@ -182,69 +124,43 @@ export async function saveOnlineSale(sale, localId = null) {
   const itemsStr = JSON.stringify(sale.items || []);
   
   if (localId) {
-    const stmt = db.prepare(`
-      UPDATE sales SET id=?, invoiceNumber=?, synced=1, createdAt=? WHERE localId=?
-    `);
-    stmt.run([sale.id, sale.invoiceNumber, sale.createdAt, localId]);
-    stmt.free();
+    await sql`
+      UPDATE sales SET id=${sale.id}, invoiceNumber=${sale.invoiceNumber}, synced=1, createdAt=${sale.createdAt} WHERE localId=${localId}
+    `;
   } else {
     // Upsert by clientSaleId
-    const stmt = db.prepare(`
+    await sql`
       INSERT OR REPLACE INTO sales (localId, id, invoiceNumber, clientSaleId, customerName, customerPhone, subtotal, discount, tax, total, paymentMethod, items, synced, createdAt, date)
       VALUES (
-        (SELECT localId FROM sales WHERE clientSaleId = ?),
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?
+        (SELECT localId FROM sales WHERE clientSaleId = ${sale.clientSaleId}),
+        ${sale.id}, ${sale.invoiceNumber}, ${sale.clientSaleId}, ${sale.customerName}, ${sale.customerPhone},
+        ${sale.subtotal}, ${sale.discount}, ${sale.tax}, ${sale.total}, ${sale.paymentMethod}, ${itemsStr}, 1, ${sale.createdAt}, ${sale.date || sale.createdAt}
       )
-    `);
-    stmt.run([
-      sale.clientSaleId, sale.id, sale.invoiceNumber, sale.clientSaleId, sale.customerName, sale.customerPhone,
-      sale.subtotal, sale.discount, sale.tax, sale.total, sale.paymentMethod, itemsStr, sale.createdAt, sale.date || sale.createdAt
-    ]);
-    stmt.free();
+    `;
   }
-  saveDB();
 }
 
 export async function getUnsyncedSales() {
   await initDB();
-  const res = db.exec('SELECT * FROM sales WHERE synced = 0');
-  if (res.length === 0) return [];
-  const cols = res[0].columns;
-  return res[0].values.map(row => {
-    const obj = {};
-    cols.forEach((col, i) => { 
-      if (col === 'items') obj[col] = JSON.parse(row[i] || '[]');
-      else obj[col] = row[i]; 
-    });
-    return obj;
-  });
+  const res = await sql`SELECT * FROM sales WHERE synced = 0`;
+  return res.map(row => ({...row, items: JSON.parse(row.items || '[]')}));
 }
 
 export async function getAllSales() {
   await initDB();
-  const res = db.exec('SELECT * FROM sales ORDER BY localId DESC');
-  if (res.length === 0) return [];
-  const cols = res[0].columns;
-  return res[0].values.map(row => {
-    const obj = {};
-    cols.forEach((col, i) => { 
-      if (col === 'items') obj[col] = JSON.parse(row[i] || '[]');
-      else obj[col] = row[i]; 
-    });
-    return obj;
-  });
+  const res = await sql`SELECT * FROM sales ORDER BY localId DESC`;
+  return res.map(row => ({...row, items: JSON.parse(row.items || '[]')}));
 }
 
 export async function getSalesCount() {
   await initDB();
-  const res = db.exec('SELECT COUNT(*) FROM sales');
-  if (res.length === 0) return 0;
-  return res[0].values[0][0];
+  const res = await sql`SELECT COUNT(*) as count FROM sales`;
+  return res[0].count;
 }
 
 export async function deduplicateSales() {
   await initDB();
-  db.run(`
+  await sql`
     DELETE FROM sales 
     WHERE localId NOT IN (
       SELECT MIN(localId) 
@@ -253,36 +169,24 @@ export async function deduplicateSales() {
       HAVING clientSaleId IS NOT NULL
     ) 
     AND clientSaleId IS NOT NULL;
-  `);
-  saveDB();
+  `;
 }
 
 export async function clearAllSales() {
   await initDB();
-  db.run('DELETE FROM sales;');
-  saveDB();
+  await sql`DELETE FROM sales;`;
 }
 
 export async function saveSettings(settingsArray) {
   await initDB();
-  db.run('BEGIN TRANSACTION;');
-  const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, val) VALUES (?, ?)');
+  await sql`BEGIN TRANSACTION;`;
   for (const s of settingsArray) {
-    stmt.run([s.key, s.val]);
+    await sql`INSERT OR REPLACE INTO settings (key, val) VALUES (${s.key}, ${s.val})`;
   }
-  stmt.free();
-  db.run('COMMIT;');
-  saveDB();
+  await sql`COMMIT;`;
 }
 
 export async function getSettings() {
   await initDB();
-  const res = db.exec('SELECT * FROM settings');
-  if (res.length === 0) return [];
-  const cols = res[0].columns;
-  return res[0].values.map(row => {
-    const obj = {};
-    cols.forEach((col, i) => { obj[col] = row[i]; });
-    return obj;
-  });
+  return await sql`SELECT * FROM settings`;
 }
