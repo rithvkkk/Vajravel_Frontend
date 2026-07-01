@@ -1,4 +1,4 @@
-const API = 'https://vajravel-backend1.onrender.com/api';
+const API = import.meta.env.VITE_API_URL || 'https://vajravel-backend1.onrender.com/api';
 import { db } from './db';
 
 async function request(url, options = {}) {
